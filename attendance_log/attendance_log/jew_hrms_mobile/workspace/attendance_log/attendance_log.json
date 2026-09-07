@@ -1,0 +1,189 @@
+{
+ "charts": [],
+ "content": "[{\"id\": \"hdr_main\", \"type\": \"header\", \"data\": {\"text\": \"<span class='h4'><b>Attendance Log</b></span>\", \"col\": 12}}, {\"id\": \"sc_nhs_attendance_punch\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Today's Punches\", \"col\": 4}}, {\"id\": \"sc_jew_attendance_regularization\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Regularizations\", \"col\": 4}}, {\"id\": \"sc_jew_attendance_location\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Locations\", \"col\": 4}}, {\"id\": \"sc_jew_employee_location_assignment\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Location Assignments\", \"col\": 4}}, {\"id\": \"sc_jew_shift_attendance_policy\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Shift Policies\", \"col\": 4}}, {\"id\": \"sc_jew_employee_face\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Registered Faces\", \"col\": 4}}, {\"id\": \"hdr_cards\", \"type\": \"header\", \"data\": {\"text\": \"<b>All Records</b>\", \"col\": 12}}, {\"id\": \"card_attendance\", \"type\": \"card\", \"data\": {\"card_name\": \"Attendance\", \"col\": 4}}, {\"id\": \"card_configuration\", \"type\": \"card\", \"data\": {\"card_name\": \"Configuration\", \"col\": 4}}, {\"id\": \"card_notifications_&_leave\", \"type\": \"card\", \"data\": {\"card_name\": \"Notifications & Leave\", \"col\": 4}}]",
+ "creation": "2026-09-08 01:31:53.712462",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "hide_custom": 0,
+ "icon": "users",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Attendance Log",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Attendance",
+   "link_count": 0,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "NHS Attendance Punch",
+   "link_count": 0,
+   "link_to": "NHS Attendance Punch",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "JEW Attendance Regularization",
+   "link_count": 0,
+   "link_to": "JEW Attendance Regularization",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Configuration",
+   "link_count": 0,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "JEW Attendance Location",
+   "link_count": 0,
+   "link_to": "JEW Attendance Location",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "JEW Employee Location Assignment",
+   "link_count": 0,
+   "link_to": "JEW Employee Location Assignment",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "JEW Shift Attendance Policy",
+   "link_count": 0,
+   "link_to": "JEW Shift Attendance Policy",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "JEW Employee Face",
+   "link_count": 0,
+   "link_to": "JEW Employee Face",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Notifications & Leave",
+   "link_count": 0,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "JEW HRMS Notification",
+   "link_count": 0,
+   "link_to": "JEW HRMS Notification",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "JEW Late Early Application",
+   "link_count": 0,
+   "link_to": "JEW Late Early Application",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Leave Details",
+   "link_count": 0,
+   "link_to": "Leave Details",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-09-08 01:31:53.712462",
+ "modified_by": "Administrator",
+ "module": "JEW HRMS Mobile",
+ "name": "Attendance Log",
+ "number_cards": [],
+ "owner": "Administrator",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 0.0,
+ "shortcuts": [
+  {
+   "color": "Green",
+   "doc_view": "",
+   "label": "Today's Punches",
+   "link_to": "NHS Attendance Punch",
+   "stats_filter": "{\"attendance_date\": [\"Timespan\", \"today\"]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "",
+   "label": "Regularizations",
+   "link_to": "JEW Attendance Regularization",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "",
+   "label": "Locations",
+   "link_to": "JEW Attendance Location",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "",
+   "label": "Location Assignments",
+   "link_to": "JEW Employee Location Assignment",
+   "type": "DocType"
+  },
+  {
+   "color": "Purple",
+   "doc_view": "",
+   "label": "Shift Policies",
+   "link_to": "JEW Shift Attendance Policy",
+   "type": "DocType"
+  },
+  {
+   "color": "Cyan",
+   "doc_view": "",
+   "label": "Registered Faces",
+   "link_to": "JEW Employee Face",
+   "type": "DocType"
+  }
+ ],
+ "title": "Attendance Log"
+}

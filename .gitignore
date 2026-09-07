@@ -1,0 +1,35 @@
+# ---- Flutter / Dart ----
+mobile/build/
+mobile/.dart_tool/
+mobile/.gradle/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+**/*.iml
+.idea/
+
+# ---- Android ----
+**/build/
+**/.gradle/
+*.keystore
+*.jks
+
+# ---- Frappe / Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.frappe/
+logs/
+*.log
+
+# ---- APK / binaries (distributed via GitHub Releases, not committed) ----
+*.apk
+*.aab
+*.idsig
+
+# ---- OS / editor junk ----
+.DS_Store
+Thumbs.db
+*.swp

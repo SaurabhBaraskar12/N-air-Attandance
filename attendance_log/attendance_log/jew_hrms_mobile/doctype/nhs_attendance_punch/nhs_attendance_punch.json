@@ -1,0 +1,253 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-09-08 01:30:27.704444",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "attendance_date",
+  "punch_type",
+  "punch_datetime",
+  "selfie_image",
+  "face_match_status",
+  "face_match_score",
+  "latitude",
+  "longitude",
+  "matched_location",
+  "distance_from_location_meter",
+  "allowed_radius_meter",
+  "within_geofence",
+  "shift",
+  "is_late",
+  "late_by_minutes",
+  "is_early",
+  "early_by_minutes",
+  "status",
+  "linked_attendance",
+  "linked_employee_checkin",
+  "regularization_reference",
+  "source",
+  "device_info",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "reqd": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "attendance_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Attendance Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "punch_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Punch Type",
+   "options": "Check In\nCheck Out",
+   "reqd": 1
+  },
+  {
+   "default": "Now",
+   "fieldname": "punch_datetime",
+   "fieldtype": "Datetime",
+   "label": "Punch Datetime",
+   "reqd": 1
+  },
+  {
+   "fieldname": "selfie_image",
+   "fieldtype": "Attach Image",
+   "label": "Selfie Image",
+   "reqd": 1
+  },
+  {
+   "fieldname": "face_match_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Face Match Status",
+   "options": "\nMatched\nNot Matched\nPending Review\nNo Reference Image"
+  },
+  {
+   "description": "similarity score 0-1",
+   "fieldname": "face_match_score",
+   "fieldtype": "Float",
+   "label": "Face Match Score"
+  },
+  {
+   "fieldname": "latitude",
+   "fieldtype": "Float",
+   "label": "Latitude",
+   "reqd": 1
+  },
+  {
+   "fieldname": "longitude",
+   "fieldtype": "Float",
+   "label": "Longitude",
+   "reqd": 1
+  },
+  {
+   "fieldname": "matched_location",
+   "fieldtype": "Link",
+   "label": "Matched Location",
+   "options": "JEW Attendance Location"
+  },
+  {
+   "fieldname": "distance_from_location_meter",
+   "fieldtype": "Float",
+   "label": "Distance From Location Meter"
+  },
+  {
+   "fieldname": "allowed_radius_meter",
+   "fieldtype": "Float",
+   "label": "Allowed Radius Meter"
+  },
+  {
+   "default": "0",
+   "fieldname": "within_geofence",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Within Geofence"
+  },
+  {
+   "fieldname": "shift",
+   "fieldtype": "Link",
+   "label": "Shift",
+   "options": "JEW Shift Attendance Policy"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_late",
+   "fieldtype": "Check",
+   "label": "Is Late"
+  },
+  {
+   "fieldname": "late_by_minutes",
+   "fieldtype": "Int",
+   "label": "Late By Minutes"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_early",
+   "fieldtype": "Check",
+   "label": "Is Early"
+  },
+  {
+   "fieldname": "early_by_minutes",
+   "fieldtype": "Int",
+   "label": "Early By Minutes"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "\nPresent\nLate\nEarly Leaving\nOutside Location\nFace Mismatch\nPending Review"
+  },
+  {
+   "fieldname": "linked_attendance",
+   "fieldtype": "Link",
+   "label": "Linked Attendance",
+   "options": "Attendance"
+  },
+  {
+   "fieldname": "linked_employee_checkin",
+   "fieldtype": "Link",
+   "label": "Linked Employee Checkin",
+   "options": "Employee Checkin"
+  },
+  {
+   "fieldname": "regularization_reference",
+   "fieldtype": "Link",
+   "label": "Regularization Reference",
+   "options": "JEW Attendance Regularization"
+  },
+  {
+   "default": "Mobile App",
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "label": "Source",
+   "options": "Mobile App\nWeb App"
+  },
+  {
+   "fieldname": "device_info",
+   "fieldtype": "Data",
+   "label": "Device Info"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-08 01:53:08.118406",
+ "modified_by": "Administrator",
+ "module": "JEW HRMS Mobile",
+ "name": "NHS Attendance Punch",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "if_owner": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

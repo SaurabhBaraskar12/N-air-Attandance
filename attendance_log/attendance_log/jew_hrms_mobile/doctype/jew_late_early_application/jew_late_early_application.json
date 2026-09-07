@@ -1,0 +1,203 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-09-08 01:30:27.265349",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "employee_name",
+  "application_type",
+  "application_date",
+  "expected_time",
+  "shift",
+  "reason",
+  "status",
+  "dept_head_approved_by",
+  "dept_head_approved_on",
+  "hr_approved_by",
+  "hr_approved_on",
+  "reviewed_by",
+  "reviewed_on",
+  "remarks",
+  "email_action_token",
+  "email_action_token_user",
+  "email_action_token_stage",
+  "email_action_token_expiry"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "reqd": 1
+  },
+  {
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name"
+  },
+  {
+   "fieldname": "application_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Application Type",
+   "options": "Late Coming\nEarly Going",
+   "reqd": 1
+  },
+  {
+   "fieldname": "application_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Application Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "expected_time",
+   "fieldtype": "Time",
+   "label": "Expected Time",
+   "reqd": 1
+  },
+  {
+   "fieldname": "shift",
+   "fieldtype": "Data",
+   "label": "Shift"
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "reqd": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Pending\nPending HR\nApproved\nRejected\nCancelled"
+  },
+  {
+   "fieldname": "dept_head_approved_by",
+   "fieldtype": "Link",
+   "label": "Dept Head Approved By",
+   "options": "User"
+  },
+  {
+   "fieldname": "dept_head_approved_on",
+   "fieldtype": "Datetime",
+   "label": "Dept Head Approved On"
+  },
+  {
+   "fieldname": "hr_approved_by",
+   "fieldtype": "Link",
+   "label": "Hr Approved By",
+   "options": "User"
+  },
+  {
+   "fieldname": "hr_approved_on",
+   "fieldtype": "Datetime",
+   "label": "Hr Approved On"
+  },
+  {
+   "fieldname": "reviewed_by",
+   "fieldtype": "Link",
+   "label": "Reviewed By",
+   "options": "User"
+  },
+  {
+   "fieldname": "reviewed_on",
+   "fieldtype": "Datetime",
+   "label": "Reviewed On"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "email_action_token",
+   "fieldtype": "Data",
+   "label": "Email Action Token"
+  },
+  {
+   "fieldname": "email_action_token_user",
+   "fieldtype": "Data",
+   "label": "Email Action Token User"
+  },
+  {
+   "fieldname": "email_action_token_stage",
+   "fieldtype": "Data",
+   "label": "Email Action Token Stage"
+  },
+  {
+   "fieldname": "email_action_token_expiry",
+   "fieldtype": "Datetime",
+   "label": "Email Action Token Expiry"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-08 01:53:10.182657",
+ "modified_by": "Administrator",
+ "module": "JEW HRMS Mobile",
+ "name": "JEW Late Early Application",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "if_owner": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
