@@ -17,17 +17,21 @@ class ApiService {
   static const _storage = FlutterSecureStorage();
   static const _kBaseUrl = 'base_url';
   static const _kSid = 'sid';
+  static const _kUser = 'username';
 
   // sensible default; overridden by the value saved on the Login screen.
   String _baseUrl = 'http://10.0.2.2:8000'; // 10.0.2.2 = host from Android emu
   String? _sid;
+  String? _username;
 
   Future<void> load() async {
     _baseUrl = (await _storage.read(key: _kBaseUrl)) ?? _baseUrl;
     _sid = await _storage.read(key: _kSid);
+    _username = await _storage.read(key: _kUser);
   }
 
   String get baseUrl => _baseUrl;
+  String? get username => _username;
   bool get isLoggedIn => _sid != null && _sid!.isNotEmpty;
 
   Future<void> setBaseUrl(String url) async {
@@ -59,11 +63,15 @@ class ApiService {
     }
     _captureSid(resp);
     if (!isLoggedIn) throw ApiException('Login failed: no session returned');
+    _username = usr.trim();
+    await _storage.write(key: _kUser, value: _username);
   }
 
   Future<void> logout() async {
     _sid = null;
+    _username = null;
     await _storage.delete(key: _kSid);
+    await _storage.delete(key: _kUser);
   }
 
   // ---- endpoints ----

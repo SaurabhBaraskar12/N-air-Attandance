@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api_service.dart';
-import 'home_screen.dart';
+import 'home_shell.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -31,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await ApiService.instance.login(_usr.text.trim(), _pwd.text);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()));
+          MaterialPageRoute(builder: (_) => const HomeShell()));
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
