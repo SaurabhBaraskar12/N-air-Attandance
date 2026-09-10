@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'api_service.dart';
 import 'widgets.dart';
 import 'theme_controller.dart';
+import 'location_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_shell.dart';
 
@@ -9,6 +10,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiService.instance.load();
   await ThemeController.instance.load();
+  // configure the windowed background-location service (does not start it until
+  // "Allow all the time" is granted — see LocationPermissionFlow).
+  try {
+    await configureLocationService();
+  } catch (_) {}
   runApp(const AttendanceApp());
 }
 

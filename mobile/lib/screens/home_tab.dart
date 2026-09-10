@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api_service.dart';
 import '../widgets.dart';
+import '../location_permission.dart';
 import 'history_screen.dart';
 import 'late_early_screen.dart';
 
@@ -17,11 +18,44 @@ class _HomeTabState extends State<HomeTab> {
   double? _leaveTotal; // remaining leave balance (null = unavailable)
   bool _loading = true;
   String? _error;
+  bool _locDegraded = false; // background location not "always" granted
+  bool _bannerDismissed = false; // dismissed this session only
 
   @override
   void initState() {
     super.initState();
     _refresh();
+    _checkLocationPermission();
+  }
+
+  Future<void> _checkLocationPermission() async {
+    // slight delay so the one-time permission dialog (from HomeShell) resolves
+    await Future.delayed(const Duration(seconds: 2));
+    final degraded = await LocationPermissionFlow.isDegraded();
+    if (mounted) setState(() => _locDegraded = degraded);
+  }
+
+  Widget _locationBanner(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: kAccentOrange.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: kAccentOrange.withOpacity(0.5)),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: const Icon(Icons.location_off, color: kAccentOrange),
+        title: const Text('Background location tracking is off',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        subtitle: const Text('Tap to enable in Settings', style: TextStyle(fontSize: 12)),
+        trailing: IconButton(
+          icon: const Icon(Icons.close, size: 18),
+          onPressed: () => setState(() => _bannerDismissed = true),
+        ),
+        onTap: () => LocationPermissionFlow.openSettings(),
+      ),
+    );
   }
 
   Future<void> _refresh() async {
@@ -94,6 +128,7 @@ class _HomeTabState extends State<HomeTab> {
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
           if (_error != null) ErrorBanner(_error!),
+          if (_locDegraded && !_bannerDismissed) _locationBanner(context),
 
           const SectionLabel('Today Overview'),
 

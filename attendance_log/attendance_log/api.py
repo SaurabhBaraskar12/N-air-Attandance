@@ -15,7 +15,7 @@ All endpoints reject Guest and resolve the Employee from frappe.session.user
 import json
 import frappe
 from frappe import _
-from frappe.utils import today, getdate, now_datetime, add_days, cint, flt
+from frappe.utils import today, getdate, now_datetime, add_days, cint, flt, get_datetime
 
 from attendance_log import face_match
 from attendance_log.attendance_logic import process_punch
@@ -392,3 +392,47 @@ def get_my_late_early_requests(limit=20):
                 "reason", "status"],
         order_by="creation desc", limit_page_length=cint(limit) or 20)
     return {"count": len(rows), "requests": rows}
+
+
+# ===========================================================================
+# Background location tracking (NHS Location Ping) — independent of the
+# check-in / punch flow. Called every ~5 min ONLY during the app's active
+# windows (09:00-09:30 and 20:30-21:00). Keep this lightweight.
+# ===========================================================================
+@frappe.whitelist()
+def log_location_ping(latitude=None, longitude=None, accuracy_meter=None,
+                      window=None, capture_time=None):
+    emp = _require_employee()
+    if latitude in (None, "") or longitude in (None, ""):
+        frappe.throw(_("latitude and longitude are required"))
+    if window not in ("Morning", "Evening"):
+        frappe.throw(_("window must be 'Morning' or 'Evening'"))
+
+    ct = None
+    if capture_time:
+        try:
+            ct = get_datetime(capture_time)
+        except Exception:
+            ct = None
+    if not ct:
+        ct = now_datetime()  # sanity fallback only
+
+    acc = None
+    if accuracy_meter not in (None, ""):
+        try:
+            acc = float(accuracy_meter)
+        except Exception:
+            acc = None
+
+    doc = frappe.get_doc({
+        "doctype": "NHS Location Ping",
+        "employee": emp["name"],
+        "employee_name": emp["employee_name"],
+        "capture_time": ct,
+        "window": window,
+        "latitude": float(latitude),
+        "longitude": float(longitude),
+        "accuracy_meter": acc,
+    })
+    doc.insert(ignore_permissions=True)
+    return {"status": "ok", "name": doc.name}

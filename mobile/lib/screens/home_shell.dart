@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api_service.dart';
 import '../theme_controller.dart';
 import '../widgets.dart';
+import '../location_permission.dart';
 import 'login_screen.dart';
 import 'home_tab.dart';
 import 'attend_screen.dart';
@@ -27,6 +28,16 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // one-time background-location permission flow (safe to call every open;
+    // it only prompts the first time, then just refreshes the banner state).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) LocationPermissionFlow.ensureRequestedOnce(context);
+    });
+  }
 
   void _goToTab(int i) => setState(() => _index = i);
 

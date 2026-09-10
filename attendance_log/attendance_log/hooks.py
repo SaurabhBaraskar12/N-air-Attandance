@@ -152,23 +152,12 @@ doctype_list_js = {"Leave Application": "public/js/leave_application_list.js"}
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"attendance_log.tasks.all"
-# 	],
-# 	"daily": [
-# 		"attendance_log.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"attendance_log.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"attendance_log.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"attendance_log.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"daily": [
+		# delete NHS Location Ping records older than 30 days
+		"attendance_log.tasks.cleanup_old_location_pings"
+	],
+}
 
 # Testing
 # -------
