@@ -436,3 +436,32 @@ def log_location_ping(latitude=None, longitude=None, accuracy_meter=None,
     })
     doc.insert(ignore_permissions=True)
     return {"status": "ok", "name": doc.name}
+
+
+# ===========================================================================
+# get_location_path — one employee's ordered movement path for a date+window
+# (Desk map page). Restricted to the elevated roles that can read other
+# employees' NHS Location Ping (matches the doctype's non-if_owner perms).
+# ===========================================================================
+@frappe.whitelist()
+def get_location_path(employee=None, date=None, window=None):
+    allowed = {"System Manager", "HR Manager", "HR User"}
+    if not (allowed & set(frappe.get_roles())):
+        frappe.throw(_("Not permitted to view location paths."),
+                     frappe.PermissionError)
+    if not employee or not date or window not in ("Morning", "Evening"):
+        frappe.throw(_("employee, date and window (Morning/Evening) are required"))
+
+    start = get_datetime(f"{date} 00:00:00")
+    end = get_datetime(f"{date} 23:59:59")
+    rows = frappe.get_all(
+        "NHS Location Ping",
+        filters={
+            "employee": employee,
+            "window": window,
+            "capture_time": ["between", [start, end]],
+        },
+        fields=["capture_time", "latitude", "longitude", "accuracy_meter"],
+        order_by="capture_time asc",
+    )
+    return {"points": rows, "count": len(rows)}

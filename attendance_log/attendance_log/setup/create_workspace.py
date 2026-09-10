@@ -53,6 +53,9 @@ def build_content():
     for name, label, color, _f in SHORTCUTS:
         blocks.append({"id": "sc_" + frappe.scrub(name), "type": "shortcut",
                        "data": {"shortcut_name": label, "col": 4}})
+    # Page shortcut: Employee Location Path (map viewer)
+    blocks.append({"id": "sc_location_path", "type": "shortcut",
+                   "data": {"shortcut_name": "Employee Location Path", "col": 4}})
     blocks.append({"id": "hdr_cards", "type": "header",
                    "data": {"text": "<b>All Records</b>", "col": 12}})
     for card_name, _ in CARD_LINKS:
@@ -84,6 +87,14 @@ def run():
         if filt:
             row["stats_filter"] = filt
         ws.append("shortcuts", row)
+
+    # Page shortcut -> Employee Location Path map viewer
+    ws.append("shortcuts", {
+        "label": "Employee Location Path",
+        "type": "Page",
+        "link_to": "location-path",
+        "color": "Green",
+    })
 
     # links (cards)
     for card_name, doctypes in CARD_LINKS:
