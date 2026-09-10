@@ -43,7 +43,11 @@ app_license = "mit"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+# Display-only relabel/recolor of Leave Application status (Open -> "Pending" red,
+# etc.). Loaded in BOTH the form and list contexts so frappe.get_indicator (used
+# by the list pills AND the form header badge) picks up our listview override.
+doctype_js = {"Leave Application": "public/js/leave_application_list.js"}
+doctype_list_js = {"Leave Application": "public/js/leave_application_list.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}

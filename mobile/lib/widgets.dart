@@ -55,13 +55,36 @@ class SectionLabel extends StatelessWidget {
   }
 }
 
-/// Color-coded status pill.
+/// Display-only mapping for a Frappe HR Leave Application status. The stored
+/// value stays Open/Approved/Rejected/Cancelled; only the shown label/color
+/// changes (mirrors the Desk get_indicator override).
+({String label, Color color}) leaveStatusDisplay(String? status) {
+  switch (status) {
+    case 'Open':
+      return (label: 'Pending', color: Colors.red);
+    case 'Approved':
+      return (label: 'Approved', color: Colors.green);
+    case 'Rejected':
+      return (label: 'Rejected', color: Colors.red);
+    case 'Cancelled':
+      return (label: 'Cancelled', color: Colors.grey);
+    default:
+      return (label: status ?? '', color: Colors.blueGrey);
+  }
+}
+
+/// Color-coded status pill. Pass [label]/[color] to override the text/color
+/// (used for Leave Application's display-only relabeling); otherwise they are
+/// derived from [status].
 class StatusBadge extends StatelessWidget {
   final String status;
-  const StatusBadge(this.status, {super.key});
+  final String? label;
+  final Color? color;
+  const StatusBadge(this.status, {super.key, this.label, this.color});
   @override
   Widget build(BuildContext context) {
-    final c = statusColor(status);
+    final c = color ?? statusColor(status);
+    final text = label ?? status;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -69,7 +92,7 @@ class StatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: c),
       ),
-      child: Text(status,
+      child: Text(text,
           style: TextStyle(color: c, fontWeight: FontWeight.w600, fontSize: 12)),
     );
   }

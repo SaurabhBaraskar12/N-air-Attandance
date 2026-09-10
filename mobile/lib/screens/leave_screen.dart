@@ -194,6 +194,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
 
   Widget _requestCard(BuildContext context, Map r) {
     final days = r['total_leave_days'];
+    final disp = leaveStatusDisplay(r['status']?.toString());
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 10),
@@ -212,7 +213,8 @@ class _LeaveScreenState extends State<LeaveScreen> {
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, fontSize: 15)),
               ),
-              StatusBadge(r['status']?.toString() ?? ''),
+              StatusBadge(r['status']?.toString() ?? '',
+                  label: disp.label, color: disp.color),
             ]),
             const SizedBox(height: 6),
             Row(children: [

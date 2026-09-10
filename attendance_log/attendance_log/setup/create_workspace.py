@@ -13,15 +13,17 @@ import json
 import frappe
 
 LABEL = "Attendance Log"
-MODULE = "JEW HRMS Mobile"
+MODULE = "NHS HRMS Mobile"
 
 SHORTCUTS = [
     ("NHS Attendance Punch", "Today's Punches", "Green",
      json.dumps({"attendance_date": ["Timespan", "today"]})),
-    ("JEW Attendance Regularization", "Regularizations", "Orange", None),
+    ("Leave Application", "Leave Requests", "Orange",
+     json.dumps({"status": "Open"})),
+    ("JEW Late Early Application", "Late/Early Requests", "Purple",
+     json.dumps({"status": "Pending"})),
+    ("JEW Attendance Regularization", "Regularizations", "Red", None),
     ("JEW Attendance Location", "Locations", "Blue", None),
-    ("JEW Employee Location Assignment", "Location Assignments", "Blue", None),
-    ("JEW Shift Attendance Policy", "Shift Policies", "Purple", None),
     ("JEW Employee Face", "Registered Faces", "Cyan", None),
 ]
 
@@ -29,12 +31,15 @@ CARD_LINKS = [
     ("Attendance", [
         "NHS Attendance Punch", "JEW Attendance Regularization",
     ]),
+    ("Leave & Requests", [
+        "Leave Application", "JEW Late Early Application", "Leave Details",
+    ]),
     ("Configuration", [
         "JEW Attendance Location", "JEW Employee Location Assignment",
         "JEW Shift Attendance Policy", "JEW Employee Face",
     ]),
-    ("Notifications & Leave", [
-        "JEW HRMS Notification", "JEW Late Early Application", "Leave Details",
+    ("Notifications", [
+        "JEW HRMS Notification",
     ]),
 ]
 
