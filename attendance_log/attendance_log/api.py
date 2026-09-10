@@ -15,7 +15,7 @@ All endpoints reject Guest and resolve the Employee from frappe.session.user
 import json
 import frappe
 from frappe import _
-from frappe.utils import today, getdate, now_datetime, add_days
+from frappe.utils import today, getdate, now_datetime, add_days, cint, flt
 
 from attendance_log import face_match
 from attendance_log.attendance_logic import process_punch
@@ -243,3 +243,152 @@ def register_my_face():
     face.save(ignore_permissions=True)
     return {"employee": emp["name"], "backend": face_match.backend_name(),
             "face": face.name}
+
+
+# ===========================================================================
+# Leave (Frappe HR) + Late/Early (JEW Late Early Application) endpoints
+# ===========================================================================
+def _resolve_leave_type(requested):
+    """Map a UI leave-type label to a real Leave Type record on this site.
+    Exact match first, then case-insensitive, then keyword/substring, then a
+    LWP fallback for 'loss of pay'-style requests. Logs non-exact resolutions."""
+    if not requested:
+        frappe.throw(_("leave_type is required"))
+    if frappe.db.exists("Leave Type", requested):
+        return requested
+    all_types = frappe.get_all("Leave Type", pluck="name")
+    if not all_types:
+        frappe.throw(_("No Leave Type is configured on this site."))
+    req = requested.strip().lower()
+    for t in all_types:                       # case-insensitive exact
+        if t.lower() == req:
+            return t
+    for t in all_types:                       # substring either way
+        if req and (req in t.lower() or t.lower() in req):
+            frappe.logger("attendance_log").info(
+                f"leave_type '{requested}' -> closest '{t}'")
+            return t
+    if any(k in req for k in ("loss", "lwp", "unpaid")):
+        for t in all_types:
+            if frappe.db.get_value("Leave Type", t, "is_lwp"):
+                frappe.logger("attendance_log").info(
+                    f"leave_type '{requested}' -> LWP '{t}'")
+                return t
+    frappe.logger("attendance_log").info(
+        f"leave_type '{requested}' not matched; using '{all_types[0]}'")
+    return all_types[0]
+
+
+@frappe.whitelist()
+def apply_leave(leave_type=None, from_date=None, to_date=None,
+                half_day=0, reason=None):
+    emp = _require_employee()
+    if not from_date or not to_date:
+        frappe.throw(_("from_date and to_date are required"))
+    if getdate(from_date) > getdate(to_date):
+        frappe.throw(_("from_date must be on or before to_date"))
+    lt = _resolve_leave_type(leave_type)
+
+    doc = frappe.get_doc({
+        "doctype": "Leave Application",
+        "employee": emp["name"],
+        "leave_type": lt,
+        "from_date": from_date,
+        "to_date": to_date,
+        "half_day": 1 if cint(half_day) else 0,
+        "posting_date": today(),
+        "status": "Open",
+        "company": emp["company"],
+        "description": reason or "",
+    })
+    # Self-service: create as a draft (status "Open"). The approver approves +
+    # submits it from Desk (Leave Application is submittable on this site).
+    # Do NOT swallow Frappe HR's validation errors — let them reach the client.
+    doc.insert(ignore_permissions=True)
+    return {"name": doc.name, "status": doc.status, "leave_type": lt,
+            "total_leave_days": doc.total_leave_days}
+
+
+@frappe.whitelist()
+def get_my_leave_requests(limit=20):
+    emp = _require_employee()
+    rows = frappe.get_all(
+        "Leave Application",
+        filters={"employee": emp["name"]},
+        fields=["name", "leave_type", "from_date", "to_date", "half_day",
+                "status", "description", "total_leave_days"],
+        order_by="creation desc", limit_page_length=cint(limit) or 20)
+    return {"count": len(rows), "requests": rows}
+
+
+@frappe.whitelist()
+def get_leave_balance():
+    """Remaining balance per leave type the employee has an allocation for,
+    computed with Frappe HR's own get_leave_balance_on (handles allocations /
+    carry-forward correctly)."""
+    emp = _require_employee()
+    from hrms.hr.doctype.leave_application.leave_application import (
+        get_leave_balance_on,
+    )
+    allocated = frappe.get_all(
+        "Leave Allocation",
+        filters={"employee": emp["name"], "docstatus": 1},
+        distinct=True, pluck="leave_type")
+    balances = {}
+    for lt in allocated:
+        try:
+            balances[lt] = flt(get_leave_balance_on(emp["name"], lt, today()))
+        except Exception:
+            frappe.logger("attendance_log").info(
+                f"leave balance failed for {emp['name']} / {lt}")
+    return {"balances": balances, "total": sum(balances.values())}
+
+
+@frappe.whitelist()
+def apply_late_early(application_type=None, application_date=None,
+                     expected_time=None, reason=None):
+    emp = _require_employee()
+    if application_type not in ("Late Coming", "Early Going"):
+        frappe.throw(_("application_type must be 'Late Coming' or 'Early Going'"))
+    if not application_date:
+        frappe.throw(_("application_date is required"))
+    if not expected_time:
+        frappe.throw(_("expected_time is required"))
+    if not reason:
+        frappe.throw(_("reason is required"))
+
+    # resolve shift with the SAME mapping used by NHS Attendance Punch
+    from attendance_log.attendance_logic import resolve_shift_policy
+    shift_name = None
+    try:
+        policy = resolve_shift_policy(
+            frappe._dict({"employee": emp["name"], "shift": None}))
+        shift_name = policy.name if policy else None
+    except Exception:
+        shift_name = None
+
+    doc = frappe.get_doc({
+        "doctype": "JEW Late Early Application",
+        "employee": emp["name"],
+        "employee_name": emp["employee_name"],
+        "application_type": application_type,
+        "application_date": application_date,
+        "expected_time": expected_time,
+        "shift": shift_name,
+        "reason": reason,
+        "status": "Pending",
+    })
+    doc.insert(ignore_permissions=True)
+    return {"name": doc.name, "status": doc.status}
+
+
+@frappe.whitelist()
+def get_my_late_early_requests(limit=20):
+    emp = _require_employee()
+    rows = frappe.get_all(
+        "JEW Late Early Application",
+        filters={"employee": emp["name"]},
+        fields=["name", "application_type", "application_date", "expected_time",
+                "reason", "status"],
+        order_by="creation desc", limit_page_length=cint(limit) or 20)
+    return {"count": len(rows), "requests": rows}

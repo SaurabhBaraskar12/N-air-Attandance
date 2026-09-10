@@ -15,10 +15,20 @@ Color statusColor(String? status) {
     case 'Not Marked':
     case 'Not Checked In':
       return kAccentOrange;
+    // leave / late-early request statuses
+    case 'Open':
+    case 'Pending':
+    case 'Pending HR':
+      return kAccentOrange;
+    case 'Approved':
+      return Colors.green;
+    case 'Rejected':
     case 'Outside Location':
     case 'Face Mismatch':
     case 'Pending Review':
       return Colors.red;
+    case 'Cancelled':
+      return Colors.blueGrey;
     default:
       return Colors.blueGrey;
   }

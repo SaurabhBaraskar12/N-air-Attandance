@@ -110,12 +110,61 @@ class ApiService {
   Future<Map<String, dynamic>> getNotifications() =>
       _get('attendance_log.api.get_my_notifications');
 
+  // ---- leave ----
+  Future<Map<String, dynamic>> applyLeave({
+    required String leaveType,
+    required String fromDate,
+    required String toDate,
+    bool halfDay = false,
+    required String reason,
+  }) =>
+      _post('attendance_log.api.apply_leave', {
+        'leave_type': leaveType,
+        'from_date': fromDate,
+        'to_date': toDate,
+        'half_day': halfDay ? '1' : '0',
+        'reason': reason,
+      });
+
+  Future<Map<String, dynamic>> getMyLeaveRequests() =>
+      _get('attendance_log.api.get_my_leave_requests');
+
+  Future<Map<String, dynamic>> getLeaveBalance() =>
+      _get('attendance_log.api.get_leave_balance');
+
+  // ---- late / early ----
+  Future<Map<String, dynamic>> applyLateEarly({
+    required String applicationType,
+    required String applicationDate,
+    required String expectedTime,
+    required String reason,
+  }) =>
+      _post('attendance_log.api.apply_late_early', {
+        'application_type': applicationType,
+        'application_date': applicationDate,
+        'expected_time': expectedTime,
+        'reason': reason,
+      });
+
+  Future<Map<String, dynamic>> getMyLateEarlyRequests() =>
+      _get('attendance_log.api.get_my_late_early_requests');
+
   // ---- helpers ----
   Future<Map<String, dynamic>> _get(String method,
       [Map<String, String>? query]) async {
     final uri = Uri.parse('$_baseUrl/api/method/$method')
         .replace(queryParameters: query);
     final resp = await http.get(uri, headers: _cookieHeader);
+    return _unwrap(resp);
+  }
+
+  Future<Map<String, dynamic>> _post(
+      String method, Map<String, String> body) async {
+    final resp = await http.post(
+      Uri.parse('$_baseUrl/api/method/$method'),
+      headers: _cookieHeader,
+      body: body,
+    );
     return _unwrap(resp);
   }
 

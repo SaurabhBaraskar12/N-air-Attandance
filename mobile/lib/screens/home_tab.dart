@@ -14,6 +14,7 @@ class HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<HomeTab> {
   Map<String, dynamic>? _status;
+  double? _leaveTotal; // remaining leave balance (null = unavailable)
   bool _loading = true;
   String? _error;
 
@@ -33,9 +34,22 @@ class _HomeTabState extends State<HomeTab> {
       if (mounted) setState(() => _status = s);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
+    // leave balance is best-effort; its failure shouldn't blank the screen
+    try {
+      final b = await ApiService.instance.getLeaveBalance();
+      if (mounted) setState(() => _leaveTotal = (b['total'] as num?)?.toDouble());
+    } catch (_) {
+      if (mounted) setState(() => _leaveTotal = null);
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  String get _leaveBalText {
+    if (_leaveTotal == null) return '—';
+    final v = _leaveTotal!;
+    final s = v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+    return '$s d';
   }
 
   String _fmtDate(String? iso) {
@@ -113,7 +127,7 @@ class _HomeTabState extends State<HomeTab> {
             Expanded(
               child: StatTile(
                 label: 'Leave Bal.',
-                value: '—', // ties to the not-yet-wired leave feature
+                value: _leaveBalText, // total remaining CL+PL from Frappe HR
                 icon: Icons.event_available_outlined,
                 color: kPrimaryBlue,
               ),
