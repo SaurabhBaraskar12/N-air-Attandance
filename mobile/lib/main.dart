@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'api_service.dart';
 import 'widgets.dart';
@@ -6,16 +7,27 @@ import 'location_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_shell.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await ApiService.instance.load();
-  await ThemeController.instance.load();
-  // configure the windowed background-location service (does not start it until
-  // "Allow all the time" is granted — see LocationPermissionFlow).
-  try {
-    await configureLocationService();
-  } catch (_) {}
-  runApp(const AttendanceApp());
+void main() {
+  // Guard the whole startup: on some OEM devices a plugin init (secure storage,
+  // background service) can throw on cold start — never let that hard-crash the
+  // app back to the launcher. Each step is isolated so the UI always renders.
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    try {
+      await ApiService.instance.load();
+    } catch (_) {}
+    try {
+      await ThemeController.instance.load();
+    } catch (_) {}
+    // configure the windowed background-location service (does not start it until
+    // "Allow all the time" is granted — see LocationPermissionFlow).
+    try {
+      await configureLocationService();
+    } catch (_) {}
+    runApp(const AttendanceApp());
+  }, (error, stack) {
+    // swallow uncaught async errors so the app stays alive
+  });
 }
 
 ThemeData _appTheme(Brightness brightness) {
@@ -38,7 +50,7 @@ class AttendanceApp extends StatelessWidget {
       valueListenable: ThemeController.instance,
       builder: (context, mode, _) {
         return MaterialApp(
-          title: 'NHS HRMS',
+          title: 'N-Air HVAC Solutions',
           debugShowCheckedModeBanner: false,
           theme: _appTheme(Brightness.light),
           darkTheme: _appTheme(Brightness.dark),
