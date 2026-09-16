@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'api_service.dart';
 import 'widgets.dart';
 import 'theme_controller.dart';
-import 'location_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_shell.dart';
 
@@ -19,11 +18,11 @@ void main() {
     try {
       await ThemeController.instance.load();
     } catch (_) {}
-    // configure the windowed background-location service (does not start it until
-    // "Allow all the time" is granted — see LocationPermissionFlow).
-    try {
-      await configureLocationService();
-    } catch (_) {}
+    // NOTE: the windowed background-location service is deliberately NOT touched
+    // here at cold start — configuring flutter_background_service during launch
+    // can crash natively on some OEMs (MIUI) before Dart can guard it. It is
+    // configured + started lazily by LocationPermissionFlow, only AFTER the user
+    // grants "Allow all the time".
     runApp(const AttendanceApp());
   }, (error, stack) {
     // swallow uncaught async errors so the app stays alive

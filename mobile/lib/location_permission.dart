@@ -62,8 +62,7 @@ class LocationPermissionFlow {
 
     if (always.isGranted) {
       await _setDegraded(false);
-      await configureLocationService();
-      await startLocationServiceIfNeeded();
+      await _safeStartTracking();
     } else {
       await _setDegraded(true);
     }
@@ -74,10 +73,23 @@ class LocationPermissionFlow {
     final always = await Permission.locationAlways.status;
     if (always.isGranted) {
       await _setDegraded(false);
-      await configureLocationService();
-      await startLocationServiceIfNeeded();
+      await _safeStartTracking();
     } else {
       await _setDegraded(true);
+    }
+  }
+
+  /// Configure + start the background service, guarded — a native failure in
+  /// flutter_background_service must never crash the app.
+  static Future<void> _safeStartTracking() async {
+    try {
+      // Android 13+ needs POST_NOTIFICATIONS so the foreground-service
+      // notification can be shown (the service is foreground during windows).
+      await Permission.notification.request();
+      await configureLocationService();
+      await startLocationServiceIfNeeded();
+    } catch (_) {
+      // tracking couldn't start on this device; app keeps working normally
     }
   }
 }

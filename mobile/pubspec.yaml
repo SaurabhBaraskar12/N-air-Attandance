@@ -1,7 +1,7 @@
 name: attendance_log_app
 description: "Employee attendance with selfie face-match + GPS geofencing (Frappe HR)."
 publish_to: 'none'
-version: 0.6.0+6
+version: 0.6.2+8
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
