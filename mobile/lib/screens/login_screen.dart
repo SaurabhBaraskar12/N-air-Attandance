@@ -89,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _url,
                     decoration: const InputDecoration(
                         labelText: 'Server Base URL',
-                        helperText: 'e.g. http://192.168.1.50:8000',
+                        helperText: 'default: https://nairhvac.tech',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.link)),
                     keyboardType: TextInputType.url,

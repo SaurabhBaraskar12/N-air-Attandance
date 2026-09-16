@@ -19,8 +19,10 @@ class ApiService {
   static const _kSid = 'sid';
   static const _kUser = 'username';
 
-  // sensible default; overridden by the value saved on the Login screen.
-  String _baseUrl = 'http://10.0.2.2:8000'; // 10.0.2.2 = host from Android emu
+  // Production server (public HTTPS domain) — works over mobile data / any
+  // network out of the box. Still overridable at runtime on the Login screen
+  // and persisted (e.g. to point at a LAN bench for local testing).
+  String _baseUrl = 'https://nairhvac.tech';
   String? _sid;
   String? _username;
 
