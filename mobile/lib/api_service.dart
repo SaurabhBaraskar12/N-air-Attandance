@@ -151,6 +151,22 @@ class ApiService {
   Future<Map<String, dynamic>> getMyLateEarlyRequests() =>
       _get('attendance_log.api.get_my_late_early_requests');
 
+  // ---- location ping (foreground / manual capture) ----
+  Future<Map<String, dynamic>> logLocationPing({
+    required double latitude,
+    required double longitude,
+    double? accuracyMeter,
+    required String window,
+    String? captureTime,
+  }) =>
+      _post('attendance_log.api.log_location_ping', {
+        'latitude': latitude.toString(),
+        'longitude': longitude.toString(),
+        if (accuracyMeter != null) 'accuracy_meter': accuracyMeter.toString(),
+        'window': window,
+        if (captureTime != null) 'capture_time': captureTime,
+      });
+
   // ---- helpers ----
   Future<Map<String, dynamic>> _get(String method,
       [Map<String, String>? query]) async {

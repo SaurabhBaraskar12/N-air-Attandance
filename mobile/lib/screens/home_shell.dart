@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api_service.dart';
 import '../theme_controller.dart';
 import '../widgets.dart';
 import '../location_permission.dart';
+import '../location_service.dart';
 import 'login_screen.dart';
 import 'home_tab.dart';
 import 'attend_screen.dart';
@@ -26,17 +28,44 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
+  Timer? _locTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // one-time background-location permission flow (safe to call every open;
     // it only prompts the first time, then just refreshes the banner state).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) LocationPermissionFlow.ensureRequestedOnce(context);
     });
+    // Reliable FOREGROUND capture: fire once now, then poll every 2 min. This
+    // does not rely on the OS waking a background service, so it captures
+    // dependably whenever the employee has the app open during a window. It
+    // self-throttles (1 ping / 5 min per window) and no-ops outside windows.
+    _foregroundCapture();
+    _locTimer =
+        Timer.periodic(const Duration(minutes: 2), (_) => _foregroundCapture());
+  }
+
+  Future<void> _foregroundCapture() async {
+    try {
+      await captureLocationForeground();
+    } catch (_) {}
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _foregroundCapture();
+  }
+
+  @override
+  void dispose() {
+    _locTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   void _goToTab(int i) => setState(() => _index = i);

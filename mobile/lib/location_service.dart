@@ -7,6 +7,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
+import 'api_service.dart';
+
 /// Background location tracking, ACTIVE ONLY during two fixed daily windows:
 ///   Morning  09:00 - 09:30
 ///   Evening  20:30 - 21:00
@@ -38,6 +40,69 @@ String? windowForTime(DateTime now) {
   if (mins >= _morningStart && mins < _morningEnd) return 'Morning';
   if (mins >= _eveningStart && mins < _eveningEnd) return 'Evening';
   return null;
+}
+
+/// Window label to use for a manual capture done outside the windows.
+String windowLabelForNow(DateTime now) =>
+    windowForTime(now) ?? (now.hour < 14 ? 'Morning' : 'Evening');
+
+/// FOREGROUND capture — runs on the main isolate while the app is OPEN, using
+/// the in-memory session. This is the RELIABLE path: it does not depend on the
+/// OS waking a background service (which MIUI/OEM battery managers often kill).
+/// Called on app open/resume and every couple of minutes while open; it
+/// self-throttles to one ping per 5 min per window and no-ops outside the
+/// windows. [force] (manual "Capture now" button) bypasses the window + throttle.
+/// Returns a short status code for UI feedback.
+Future<String> captureLocationForeground({bool force = false}) async {
+  final now = DateTime.now();
+  final window = windowForTime(now);
+  if (!force && window == null) return 'outside_window';
+
+  final prefs = await SharedPreferences.getInstance();
+  if (!force) {
+    final key = 'lastping_${window}_${now.year}-${now.month}-${now.day}';
+    final last = prefs.getInt(key) ?? 0;
+    if (now.millisecondsSinceEpoch - last < _minGapMs) return 'throttled';
+  }
+
+  if (!ApiService.instance.isLoggedIn) return 'not_logged_in';
+
+  LocationPermission perm = await Geolocator.checkPermission();
+  if (perm == LocationPermission.denied) {
+    perm = await Geolocator.requestPermission();
+  }
+  if (perm == LocationPermission.denied ||
+      perm == LocationPermission.deniedForever) {
+    return 'no_permission';
+  }
+  if (!await Geolocator.isLocationServiceEnabled()) return 'gps_off';
+
+  Position pos;
+  try {
+    pos = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    ).timeout(const Duration(seconds: 30));
+  } catch (_) {
+    return 'gps_failed';
+  }
+
+  final label = force ? windowLabelForNow(now) : window!;
+  try {
+    await ApiService.instance.logLocationPing(
+      latitude: pos.latitude,
+      longitude: pos.longitude,
+      accuracyMeter: pos.accuracy,
+      window: label,
+      captureTime: now.toIso8601String(),
+    );
+  } catch (_) {
+    return 'send_failed';
+  }
+
+  // shared throttle key so background + foreground don't double-send
+  final key = 'lastping_${label}_${now.year}-${now.month}-${now.day}';
+  await prefs.setInt(key, now.millisecondsSinceEpoch);
+  return 'ok';
 }
 
 /// Configure (and optionally start) the background service. Called from main().
