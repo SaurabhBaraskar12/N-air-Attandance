@@ -8,12 +8,17 @@
  "field_order": [
   "employee",
   "employee_name",
-  "capture_time",
+  "capture_date",
   "window",
+  "capture_time",
+  "last_capture",
+  "points_count",
   "latitude",
   "longitude",
   "accuracy_meter",
-  "map_link"
+  "path",
+  "map_link",
+  "points_json"
  ],
  "fields": [
   {
@@ -33,10 +38,11 @@
    "read_only": 1
   },
   {
-   "fieldname": "capture_time",
-   "fieldtype": "Datetime",
+   "fieldname": "capture_date",
+   "fieldtype": "Date",
    "in_list_view": 1,
-   "label": "Capture Time",
+   "in_standard_filter": 1,
+   "label": "Date",
    "reqd": 1
   },
   {
@@ -49,16 +55,34 @@
    "reqd": 1
   },
   {
+   "fieldname": "capture_time",
+   "fieldtype": "Datetime",
+   "label": "First Capture",
+   "reqd": 1
+  },
+  {
+   "fieldname": "last_capture",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Last Capture"
+  },
+  {
+   "fieldname": "points_count",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Points"
+  },
+  {
    "fieldname": "latitude",
    "fieldtype": "Float",
-   "label": "Latitude",
+   "label": "Latitude (latest)",
    "precision": "6",
    "reqd": 1
   },
   {
    "fieldname": "longitude",
    "fieldtype": "Float",
-   "label": "Longitude",
+   "label": "Longitude (latest)",
    "precision": "6",
    "reqd": 1
   },
@@ -68,18 +92,31 @@
    "label": "Accuracy (m)"
   },
   {
+   "fieldname": "path",
+   "fieldtype": "Geolocation",
+   "label": "Travel Path (Map)",
+   "read_only": 1
+  },
+  {
    "fieldname": "map_link",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Map Link",
+   "label": "Route (Google Maps)",
    "options": "URL",
+   "read_only": 1
+  },
+  {
+   "fieldname": "points_json",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Points (raw)",
    "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-10 23:28:06.058298",
+ "modified": "2026-09-17 05:10:00.000000",
  "modified_by": "Administrator",
  "module": "NHS HRMS Mobile",
  "name": "NHS Location Ping",

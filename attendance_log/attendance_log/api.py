@@ -395,10 +395,54 @@ def get_my_late_early_requests(limit=20):
 
 
 # ===========================================================================
-# Background location tracking (NHS Location Ping) — independent of the
-# check-in / punch flow. Called every ~5 min ONLY during the app's active
-# windows (09:00-09:30 and 20:30-21:00). Keep this lightweight.
+# Background location tracking (NHS Location Ping) — windowed TRAVEL PATH.
+# Each employee gets ONE record per (date, window); every ping APPENDS a point,
+# so the record shows the full path A->B->... on a map (Geolocation field) plus
+# a Google-Maps route link. Called ~every 5 min during the app's active windows
+# (09:00-09:30 and 20:30-21:00) and by the manual "Capture now" button.
 # ===========================================================================
+def _build_path_geojson(pts):
+    """FeatureCollection: a LineString for the travelled path + Start/Latest
+    point markers. NOTE: GeoJSON coordinates are [longitude, latitude]."""
+    coords = [[p["lng"], p["lat"]] for p in pts]
+    features = []
+    if len(coords) >= 2:
+        features.append({
+            "type": "Feature",
+            "properties": {"name": "Travel path"},
+            "geometry": {"type": "LineString", "coordinates": coords},
+        })
+    if coords:
+        features.append({
+            "type": "Feature",
+            "properties": {"name": "Start"},
+            "geometry": {"type": "Point", "coordinates": coords[0]},
+        })
+        features.append({
+            "type": "Feature",
+            "properties": {"name": "Latest"},
+            "geometry": {"type": "Point", "coordinates": coords[-1]},
+        })
+    return json.dumps({"type": "FeatureCollection", "features": features})
+
+
+def _build_route_link(pts):
+    """One Google Maps link that draws the whole route through the points."""
+    if not pts:
+        return ""
+    if len(pts) == 1:
+        p = pts[0]
+        return "https://www.google.com/maps?q={0},{1}".format(p["lat"], p["lng"])
+    # too many waypoints make the URL unwieldy — sample down to ~10 (keep last).
+    sample = pts
+    if len(pts) > 10:
+        step = len(pts) / 10.0
+        sample = [pts[int(i * step)] for i in range(10)]
+        sample[-1] = pts[-1]
+    path = "/".join("{0},{1}".format(p["lat"], p["lng"]) for p in sample)
+    return "https://www.google.com/maps/dir/" + path
+
+
 @frappe.whitelist()
 def log_location_ping(latitude=None, longitude=None, accuracy_meter=None,
                       window=None, capture_time=None):
@@ -408,6 +452,10 @@ def log_location_ping(latitude=None, longitude=None, accuracy_meter=None,
     if window not in ("Morning", "Evening"):
         frappe.throw(_("window must be 'Morning' or 'Evening'"))
 
+    lat = flt(latitude)
+    lng = flt(longitude)
+    acc = flt(accuracy_meter) if accuracy_meter not in (None, "") else None
+
     ct = None
     if capture_time:
         try:
@@ -416,32 +464,55 @@ def log_location_ping(latitude=None, longitude=None, accuracy_meter=None,
             ct = None
     if not ct:
         ct = now_datetime()  # sanity fallback only
+    cdate = getdate(ct)
 
-    acc = None
-    if accuracy_meter not in (None, ""):
-        try:
-            acc = float(accuracy_meter)
-        except Exception:
-            acc = None
-
-    doc = frappe.get_doc({
-        "doctype": "NHS Location Ping",
+    # ONE record per (employee, date, window): find it or create it, then append.
+    name = frappe.db.get_value("NHS Location Ping", {
         "employee": emp["name"],
-        "employee_name": emp["employee_name"],
-        "capture_time": ct,
         "window": window,
-        "latitude": float(latitude),
-        "longitude": float(longitude),
-        "accuracy_meter": acc,
+        "capture_date": cdate,
     })
-    doc.insert(ignore_permissions=True)
-    return {"status": "ok", "name": doc.name}
+    if name:
+        doc = frappe.get_doc("NHS Location Ping", name)
+    else:
+        doc = frappe.get_doc({
+            "doctype": "NHS Location Ping",
+            "employee": emp["name"],
+            "employee_name": emp["employee_name"],
+            "window": window,
+            "capture_date": cdate,
+            "capture_time": ct,      # first capture of the window
+            "points_json": "[]",
+        })
+
+    try:
+        pts = json.loads(doc.points_json or "[]")
+    except Exception:
+        pts = []
+    pts.append({
+        "t": ct.strftime("%Y-%m-%d %H:%M:%S"),
+        "lat": lat, "lng": lng, "acc": acc,
+    })
+
+    doc.points_json = json.dumps(pts)
+    doc.points_count = len(pts)
+    doc.last_capture = ct
+    doc.latitude = lat        # latest point
+    doc.longitude = lng
+    doc.accuracy_meter = acc
+    doc.path = _build_path_geojson(pts)
+    doc.map_link = _build_route_link(pts)
+
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+    return {"status": "ok", "name": doc.name, "window": window,
+            "points": len(pts)}
 
 
 # ===========================================================================
 # get_location_path — one employee's ordered movement path for a date+window
-# (Desk map page). Restricted to the elevated roles that can read other
-# employees' NHS Location Ping (matches the doctype's non-if_owner perms).
+# (Desk map page). Reads the accumulated points from that day's record.
+# Restricted to the elevated roles (matches the doctype's non-if_owner perms).
 # ===========================================================================
 @frappe.whitelist()
 def get_location_path(employee=None, date=None, window=None):
@@ -452,16 +523,22 @@ def get_location_path(employee=None, date=None, window=None):
     if not employee or not date or window not in ("Morning", "Evening"):
         frappe.throw(_("employee, date and window (Morning/Evening) are required"))
 
-    start = get_datetime(f"{date} 00:00:00")
-    end = get_datetime(f"{date} 23:59:59")
-    rows = frappe.get_all(
-        "NHS Location Ping",
-        filters={
-            "employee": employee,
-            "window": window,
-            "capture_time": ["between", [start, end]],
-        },
-        fields=["capture_time", "latitude", "longitude", "accuracy_meter"],
-        order_by="capture_time asc",
-    )
-    return {"points": rows, "count": len(rows)}
+    name = frappe.db.get_value("NHS Location Ping", {
+        "employee": employee,
+        "window": window,
+        "capture_date": getdate(date),
+    })
+    points = []
+    if name:
+        raw = frappe.db.get_value("NHS Location Ping", name, "points_json")
+        try:
+            pts = json.loads(raw or "[]")
+        except Exception:
+            pts = []
+        points = [{
+            "capture_time": p.get("t"),
+            "latitude": p.get("lat"),
+            "longitude": p.get("lng"),
+            "accuracy_meter": p.get("acc"),
+        } for p in pts]
+    return {"points": points, "count": len(points)}
