@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -77,27 +76,21 @@ class ApiService {
   }
 
   // ---- endpoints ----
+  /// Location-only attendance: sends the current GPS with the punch type.
+  /// No selfie / face match. The backend records the location and computes
+  /// late/early against the attendance windows.
   Future<Map<String, dynamic>> markAttendance({
     required String punchType,
     required double latitude,
     required double longitude,
-    required File selfie,
     String? deviceInfo,
-  }) async {
-    final uri = Uri.parse(
-        '$_baseUrl/api/method/attendance_log.api.mark_attendance');
-    final req = http.MultipartRequest('POST', uri)
-      ..headers.addAll(_cookieHeader)
-      ..fields['punch_type'] = punchType
-      ..fields['latitude'] = latitude.toString()
-      ..fields['longitude'] = longitude.toString()
-      ..fields['device_info'] = deviceInfo ?? 'Flutter App'
-      ..files.add(await http.MultipartFile.fromPath('selfie_image', selfie.path));
-
-    final streamed = await req.send();
-    final resp = await http.Response.fromStream(streamed);
-    return _unwrap(resp);
-  }
+  }) =>
+      _post('attendance_log.api.mark_attendance', {
+        'punch_type': punchType,
+        'latitude': latitude.toString(),
+        'longitude': longitude.toString(),
+        'device_info': deviceInfo ?? 'Flutter App',
+      });
 
   Future<Map<String, dynamic>> getTodayStatus() =>
       _get('attendance_log.api.get_today_status');
@@ -150,22 +143,6 @@ class ApiService {
 
   Future<Map<String, dynamic>> getMyLateEarlyRequests() =>
       _get('attendance_log.api.get_my_late_early_requests');
-
-  // ---- location ping (foreground / manual capture) ----
-  Future<Map<String, dynamic>> logLocationPing({
-    required double latitude,
-    required double longitude,
-    double? accuracyMeter,
-    required String window,
-    String? captureTime,
-  }) =>
-      _post('attendance_log.api.log_location_ping', {
-        'latitude': latitude.toString(),
-        'longitude': longitude.toString(),
-        if (accuracyMeter != null) 'accuracy_meter': accuracyMeter.toString(),
-        'window': window,
-        if (captureTime != null) 'capture_time': captureTime,
-      });
 
   // ---- helpers ----
   Future<Map<String, dynamic>> _get(String method,

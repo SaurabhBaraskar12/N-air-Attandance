@@ -8,31 +8,41 @@ run identical logic. `process_punch(doc)` is the single entry point, invoked
 from the controller's after_insert hook. The API just builds + inserts the doc
 and then reads back the computed result.
 
-Pipeline (spec section 3):
-  1. Face match     -> face_match_status, face_match_score
-  2. Geofence       -> matched_location, distance, within_geofence
-  3. Shift/late-early -> is_late/is_early + minutes, monthly-limit policy
-  4. Sync into HR core -> Employee Checkin (+ Attendance)
-  5. Notifications  -> JEW HRMS Notification
-Auto-raises JEW Attendance Regularization for Face Mismatch / Outside Location
-/ policy actions.
+Pipeline (simplified — no face match, no location blocking):
+  1. Geofence (informational) -> matched_location, distance, within_geofence
+     (recorded so the admin can see WHERE the punch happened; never blocks).
+  2. Shift/late-early -> is_late/is_early + minutes vs. the attendance windows.
+  3. Location ping -> upsert a single-point NHS Location Ping for the map.
+  4. Sync into HR core -> Employee Checkin (+ Attendance = Present).
+  5. Notifications -> JEW HRMS Notification.
 
-Shift mapping (documented per spec fallback): the employee's shift is resolved
-in resolve_shift_policy() in this order:
+Attendance windows (local server time), used when no JEW Shift Attendance
+Policy is configured for the employee:
+  * Check In  on-time 09:00-09:30  (start 09:00 + 30 min grace) -> after = late
+  * Check Out on-time 20:30-21:00  (end   21:00 + 30 min grace) -> before = early
+
+Shift mapping: the employee's shift is resolved in resolve_shift_policy() in
+this order:
   a) NHS Attendance Punch.shift if already set,
   b) an active Shift Assignment / Employee.default_shift (Frappe HR) whose
      Shift Type name == JEW Shift Attendance Policy.shift_name,
   c) the single active JEW Shift Attendance Policy if only one exists,
-  d) None (late/early checks skipped).
+  d) None -> the default windows above are used.
 """
 
+import json
 import math
 import frappe
 from frappe.utils import (
     now_datetime, get_datetime, getdate, get_time, flt, cint, today,
 )
 
-from attendance_log import face_match
+# Fixed, company-wide attendance windows (local server time). Applied to every
+# employee for the late/early calculation, regardless of any shift policy.
+DEFAULT_CHECKIN_START = "09:00:00"      # morning check-in start
+DEFAULT_CHECKIN_GRACE_MIN = 30          # on-time until 09:30 -> after = late
+DEFAULT_CHECKOUT_END = "21:00:00"       # evening check-out end (9:00 PM)
+DEFAULT_CHECKOUT_GRACE_MIN = 30         # on-time from 20:30 -> before = early
 
 
 # ---------------------------------------------------------------------------
@@ -49,25 +59,6 @@ def haversine_meters(lat1, lon1, lat2, lon2):
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def _selfie_bytes(doc):
-    """Resolve the attached selfie_image (a file URL) to raw bytes."""
-    url = doc.get("selfie_image")
-    if not url:
-        return None
-    try:
-        f = frappe.get_doc("File", {"file_url": url})
-        with open(f.get_full_path(), "rb") as fh:
-            return fh.read()
-    except Exception:
-        # fall back to resolving the path directly
-        try:
-            from frappe.utils.file_manager import get_file_path
-            with open(get_file_path(url), "rb") as fh:
-                return fh.read()
-        except Exception:
-            return None
-
-
 def _minutes_between_times(t_later, t_earlier):
     """Difference in whole minutes between two datetime.time objects."""
     def mins(t):
@@ -76,32 +67,7 @@ def _minutes_between_times(t_later, t_earlier):
 
 
 # ---------------------------------------------------------------------------
-# step 1: face match
-# ---------------------------------------------------------------------------
-def run_face_match(doc, result):
-    face = frappe.db.get_value(
-        "JEW Employee Face",
-        {"employee": doc.employee, "is_active": 1},
-        ["name", "face_encoding"], as_dict=True,
-    )
-    if not face or not face.get("face_encoding"):
-        result["face_match_status"] = "No Reference Image"
-        result["face_match_score"] = 0.0
-        return
-
-    selfie = _selfie_bytes(doc)
-    if not selfie:
-        result["face_match_status"] = "Pending Review"
-        result["face_match_score"] = 0.0
-        return
-
-    score, matched = face_match.compare(face["face_encoding"], selfie)
-    result["face_match_score"] = score
-    result["face_match_status"] = "Matched" if matched else "Not Matched"
-
-
-# ---------------------------------------------------------------------------
-# step 2: geofence
+# step 1: geofence (informational only — never blocks the punch)
 # ---------------------------------------------------------------------------
 def resolve_location(doc):
     """Return (location_name, allowed_radius). Assignment first, else nearest."""
@@ -187,30 +153,31 @@ def resolve_shift_policy(doc):
 
 
 def run_shift(doc, result):
-    policy = resolve_shift_policy(doc)
-    if not policy:
-        return None
-    result["shift"] = policy.name
-    punch_dt = get_datetime(doc.punch_datetime)
-    punch_time = punch_dt.time()
+    """Compute late/early against the FIXED, company-wide attendance windows —
+    Check In on-time 09:00-09:30, Check Out on-time 20:30-21:00 — for every
+    employee, independent of any JEW Shift Attendance Policy. This guarantees a
+    single consistent rule:
+      * Check In  after 09:30  -> late by (minutes past 09:30)
+      * Check Out before 20:30 -> early by (minutes before 20:30)
+    """
+    result["shift"] = None
+    punch_time = get_datetime(doc.punch_datetime).time()
 
     if doc.punch_type == "Check In":
-        start = get_time(policy.shift_start_time)
-        grace = cint(policy.late_coming_grace_minutes)
-        late_by = _minutes_between_times(punch_time, start) - grace
+        start = get_time(DEFAULT_CHECKIN_START)
+        late_by = _minutes_between_times(punch_time, start) - DEFAULT_CHECKIN_GRACE_MIN
         if late_by > 0:
             result["is_late"] = 1
             result["late_by_minutes"] = late_by
             result["status"] = "Late"
     elif doc.punch_type == "Check Out":
-        end = get_time(policy.shift_end_time)
-        grace = cint(policy.early_going_grace_minutes)
-        early_by = _minutes_between_times(end, punch_time) - grace
+        end = get_time(DEFAULT_CHECKOUT_END)
+        early_by = _minutes_between_times(end, punch_time) - DEFAULT_CHECKOUT_GRACE_MIN
         if early_by > 0:
             result["is_early"] = 1
             result["early_by_minutes"] = early_by
             result["status"] = "Early Leaving"
-    return policy
+    return None
 
 
 def apply_monthly_limits(doc, result, policy):
@@ -359,40 +326,33 @@ def _update_working_hours(att):
 # top-level entry point
 # ---------------------------------------------------------------------------
 def process_punch(doc):
-    """Run the full pipeline and persist the computed fields on `doc`."""
+    """Run the simplified pipeline and persist the computed fields on `doc`.
+
+    No face match and no location blocking: geofence + shift late/early are
+    recorded for the admin, HR-core Attendance is always synced as Present, and
+    the punch's location is mirrored into NHS Location Ping for the map.
+    """
     result = {
         "status": "Present",
         "is_late": 0, "is_early": 0,
         "within_geofence": 0,
     }
 
-    run_face_match(doc, result)
-    run_geofence(doc, result)
-    policy = run_shift(doc, result)
+    run_geofence(doc, result)   # informational only — records distance/location
+    run_shift(doc, result)      # -> Present / Late / Early Leaving
 
-    # decide status precedence: face mismatch / outside location override
-    if result.get("face_match_status") == "Not Matched":
-        result["status"] = "Face Mismatch"
-        reg = raise_regularization(doc, "Face Mismatch")
-        result["regularization_reference"] = reg
-    elif result.get("face_match_status") in ("No Reference Image", "Pending Review"):
-        result["status"] = "Pending Review"
+    # always sync HR core (Employee Checkin + Attendance = Present)
+    try:
+        sync_hr_core(doc, result)
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "attendance_log: sync_hr_core")
 
-    if not result.get("within_geofence"):
-        # outside location overrides a plain Present/Late but not Face Mismatch
-        if result["status"] in ("Present", "Late", "Early Leaving"):
-            result["status"] = "Outside Location"
-        reg = raise_regularization(doc, "Outside Location")
-        result["regularization_reference"] = reg
-
-    apply_monthly_limits(doc, result, policy)
-
-    # sync HR core only when the punch is acceptable (not a hard block)
-    if result["status"] not in ("Pending Review",):
-        try:
-            sync_hr_core(doc, result)
-        except Exception:
-            frappe.log_error(frappe.get_traceback(), "attendance_log: sync_hr_core")
+    # mirror the location into NHS Location Ping so the admin sees it on the map
+    try:
+        result["location_ping"] = write_location_ping(doc)
+    except Exception:
+        frappe.log_error(frappe.get_traceback(),
+                         "attendance_log: write_location_ping")
 
     # summary notification
     notify(doc, _ntype_for(result["status"]),
@@ -400,6 +360,7 @@ def process_punch(doc):
 
     # persist everything in one write (avoids re-triggering doc hooks)
     persist = {k: v for k, v in result.items() if not k.startswith("_")}
+    persist.pop("location_ping", None)  # not a field on the punch
     frappe.db.set_value("NHS Attendance Punch", doc.name, persist,
                         update_modified=False)
     frappe.db.commit()
@@ -407,11 +368,57 @@ def process_punch(doc):
     return result
 
 
+# ---------------------------------------------------------------------------
+# location ping: one single-point record per (employee, date, window) mirroring
+# the punch, so the admin can see WHERE the employee marked on the Desk map.
+# Check In -> Morning window, Check Out -> Evening window.
+# ---------------------------------------------------------------------------
+def write_location_ping(doc):
+    window = "Morning" if doc.punch_type == "Check In" else "Evening"
+    cdate = getdate(doc.attendance_date)
+    ct = get_datetime(doc.punch_datetime)
+    lat = flt(doc.latitude)
+    lng = flt(doc.longitude)
+
+    name = frappe.db.get_value("NHS Location Ping", {
+        "employee": doc.employee, "window": window, "capture_date": cdate,
+    })
+    if name:
+        ping = frappe.get_doc("NHS Location Ping", name)
+    else:
+        ping = frappe.get_doc({
+            "doctype": "NHS Location Ping",
+            "employee": doc.employee,
+            "employee_name": frappe.db.get_value(
+                "Employee", doc.employee, "employee_name"),
+            "window": window,
+            "capture_date": cdate,
+            "capture_time": ct,
+        })
+
+    ping.last_capture = ct
+    ping.points_count = 1
+    ping.latitude = lat
+    ping.longitude = lng
+    ping.path = json.dumps({
+        "type": "FeatureCollection",
+        "features": [{
+            "type": "Feature",
+            "properties": {"name": "Punch location"},
+            "geometry": {"type": "Point", "coordinates": [lng, lat]},
+        }],
+    })
+    ping.map_link = "https://www.google.com/maps?q={0},{1}".format(lat, lng)
+    ping.points_json = json.dumps([{
+        "t": ct.strftime("%Y-%m-%d %H:%M:%S"), "lat": lat, "lng": lng, "acc": None,
+    }])
+    ping.save(ignore_permissions=True)
+    return ping.name
+
+
 def _ntype_for(status):
     return {
         "Present": "Success", "Late": "Warning", "Early Leaving": "Warning",
-        "Outside Location": "Error", "Face Mismatch": "Error",
-        "Pending Review": "Warning",
     }.get(status, "Info")
 
 
@@ -420,9 +427,6 @@ def _summary_message(doc, result):
         "Present": "Marked Present.",
         "Late": f"Marked Present but Late by {result.get('late_by_minutes',0)} min.",
         "Early Leaving": f"Early leaving by {result.get('early_by_minutes',0)} min.",
-        "Outside Location": "Outside allowed location - regularization raised.",
-        "Face Mismatch": "Face not matched - pending HR review.",
-        "Pending Review": "Attendance pending HR review.",
     }
     return f"{doc.punch_type} at {doc.punch_datetime}: " + msgs.get(
         result["status"], result["status"])

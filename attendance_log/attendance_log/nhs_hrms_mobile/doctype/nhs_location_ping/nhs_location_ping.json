@@ -94,14 +94,14 @@
   {
    "fieldname": "path",
    "fieldtype": "Geolocation",
-   "label": "Travel Path (Map)",
+   "label": "Location (Map)",
    "read_only": 1
   },
   {
    "fieldname": "map_link",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Route (Google Maps)",
+   "label": "Open in Google Maps",
    "options": "URL",
    "read_only": 1
   },
@@ -116,7 +116,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-17 15:30:00.000000",
+ "modified": "2026-09-18 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "NHS HRMS Mobile",
  "name": "NHS Location Ping",

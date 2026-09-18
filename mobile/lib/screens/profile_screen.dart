@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api_service.dart';
 import '../widgets.dart';
-import '../location_service.dart';
 import 'home_shell.dart' show performLogout;
 
 class ProfileScreen extends StatefulWidget {
@@ -14,7 +13,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _name;
   String? _employee;
   bool _loading = true;
-  bool _capturing = false;
 
   @override
   void initState() {
@@ -80,28 +78,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _infoTile(context, Icons.dns_outlined, 'Server',
             ApiService.instance.baseUrl),
         const SizedBox(height: 28),
-        OutlinedButton.icon(
-          onPressed: _capturing ? null : _captureNow,
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-          ),
-          icon: _capturing
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.my_location),
-          label: Text(_capturing ? 'Capturing…' : 'Capture my location now'),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Sends your current location to the office record now (also used to test tracking).',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-              fontSize: 11,
-              color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-        const SizedBox(height: 20),
         FilledButton.icon(
           onPressed: () => performLogout(context),
           style: FilledButton.styleFrom(
@@ -113,30 +89,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ],
     );
-  }
-
-  Future<void> _captureNow() async {
-    setState(() => _capturing = true);
-    String status;
-    try {
-      status = await captureLocationForeground(force: true);
-    } catch (_) {
-      status = 'send_failed';
-    }
-    if (!mounted) return;
-    setState(() => _capturing = false);
-    const msgs = {
-      'ok': '✅ Location captured and saved to the office record.',
-      'not_logged_in': 'Please log in again.',
-      'no_permission': 'Location permission denied — allow it in Settings.',
-      'gps_off': 'Turn on GPS / Location and try again.',
-      'gps_failed': 'Could not get GPS fix — move to open sky and retry.',
-      'send_failed': 'Saved failed — check internet and try again.',
-    };
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msgs[status] ?? 'Result: $status'),
-      backgroundColor: status == 'ok' ? Colors.green.shade700 : null,
-    ));
   }
 
   Widget _infoTile(

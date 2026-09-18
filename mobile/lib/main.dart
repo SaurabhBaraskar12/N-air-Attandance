@@ -18,11 +18,8 @@ void main() {
     try {
       await ThemeController.instance.load();
     } catch (_) {}
-    // NOTE: the windowed background-location service is deliberately NOT touched
-    // here at cold start — configuring flutter_background_service during launch
-    // can crash natively on some OEMs (MIUI) before Dart can guard it. It is
-    // configured + started lazily by LocationPermissionFlow, only AFTER the user
-    // grants "Allow all the time".
+    // Location is captured only on demand when the user taps Mark Attendance —
+    // there is no background service to start at launch.
     runApp(const AttendanceApp());
   }, (error, stack) {
     // swallow uncaught async errors so the app stays alive

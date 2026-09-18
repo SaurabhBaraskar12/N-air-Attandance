@@ -17,7 +17,6 @@ import frappe
 from frappe import _
 from frappe.utils import today, getdate, now_datetime, add_days, cint, flt, get_datetime
 
-from attendance_log import face_match
 from attendance_log.attendance_logic import process_punch
 
 
@@ -36,29 +35,12 @@ def _require_employee():
     return emp
 
 
-def _save_selfie(employee, prefix="selfie"):
-    """Save the uploaded file (request.files['selfie_image'] or 'file') and
-    return its file_url. Returns None if no file was uploaded."""
-    files = getattr(frappe.request, "files", None)
-    if not files:
-        return None
-    fobj = files.get("selfie_image") or files.get("file")
-    if not fobj:
-        return None
-    content = fobj.stream.read()
-    fname = f"{prefix}_{employee}_{frappe.generate_hash(length=8)}.jpg"
-    saved = frappe.get_doc({
-        "doctype": "File",
-        "file_name": fname,
-        "is_private": 1,
-        "content": content,
-    })
-    saved.insert(ignore_permissions=True)
-    return saved.file_url
-
-
 # ---------------------------------------------------------------------------
-# 4.1 mark_attendance  (POST, multipart/form-data)
+# 4.1 mark_attendance  (POST)
+# Location-only attendance: no selfie / face match. The punch records the GPS
+# location (mirrored to NHS Location Ping for the map) and computes late/early
+# against the attendance windows. Marking is never blocked — a late punch is
+# still recorded, with the late-by minutes returned for the app's popup.
 # ---------------------------------------------------------------------------
 @frappe.whitelist()
 def mark_attendance(punch_type=None, latitude=None, longitude=None,
@@ -70,17 +52,12 @@ def mark_attendance(punch_type=None, latitude=None, longitude=None,
     if latitude in (None, "") or longitude in (None, ""):
         frappe.throw(_("latitude and longitude are required"))
 
-    selfie_url = _save_selfie(emp["name"])
-    if not selfie_url:
-        frappe.throw(_("selfie_image file is required"))
-
     doc = frappe.get_doc({
         "doctype": "NHS Attendance Punch",
         "employee": emp["name"],
         "attendance_date": today(),
         "punch_type": punch_type,
         "punch_datetime": now_datetime(),
-        "selfie_image": selfie_url,
         "latitude": float(latitude),
         "longitude": float(longitude),
         "device_info": device_info,
@@ -91,11 +68,14 @@ def mark_attendance(punch_type=None, latitude=None, longitude=None,
 
     return {
         "punch": doc.name,
+        "punch_type": doc.punch_type,
+        "punch_time": doc.punch_datetime,
         "status": doc.status,
-        "face_match_status": doc.face_match_status,
-        "face_match_score": doc.face_match_score,
         "within_geofence": bool(doc.within_geofence),
         "distance_from_location_meter": doc.distance_from_location_meter,
+        "matched_location": doc.matched_location,
+        "latitude": doc.latitude,
+        "longitude": doc.longitude,
         "is_late": bool(doc.is_late),
         "late_by_minutes": doc.late_by_minutes,
         "is_early": bool(doc.is_early),
@@ -105,19 +85,15 @@ def mark_attendance(punch_type=None, latitude=None, longitude=None,
 
 
 def _result_message(doc):
-    if doc.status == "Present":
-        return "Attendance marked: Present."
     if doc.status == "Late":
-        return f"Marked Present but late by {doc.late_by_minutes or 0} minutes."
+        return (f"Attendance marked. You are late by "
+                f"{doc.late_by_minutes or 0} minutes.")
     if doc.status == "Early Leaving":
-        return f"Early leaving by {doc.early_by_minutes or 0} minutes."
-    if doc.status == "Outside Location":
-        return "You are outside the allowed location. A regularization has been raised."
-    if doc.status == "Face Mismatch":
-        return "Face did not match. Pending HR review."
-    if doc.status == "Pending Review":
-        return "Attendance recorded and pending HR review."
-    return doc.status or "Attendance recorded."
+        return (f"Attendance marked. You are leaving early by "
+                f"{doc.early_by_minutes or 0} minutes.")
+    if doc.punch_type == "Check Out":
+        return "Attendance marked: Shift complete."
+    return "Attendance marked: Present, on time."
 
 
 # ---------------------------------------------------------------------------
@@ -130,7 +106,7 @@ def get_today_status():
         "NHS Attendance Punch",
         filters={"employee": emp["name"], "attendance_date": today()},
         fields=["name", "punch_type", "punch_datetime", "status",
-                "within_geofence", "face_match_status"],
+                "within_geofence"],
         order_by="punch_datetime asc")
 
     check_in = next((p for p in punches if p.punch_type == "Check In"), None)
@@ -174,7 +150,7 @@ def get_attendance_history(from_date=None, to_date=None):
             "attendance_date": ["between", [from_date, to_date]],
         },
         fields=["name", "attendance_date", "punch_type", "punch_datetime",
-                "status", "within_geofence", "face_match_status",
+                "status", "within_geofence",
                 "distance_from_location_meter", "linked_attendance"],
         order_by="punch_datetime desc")
 
@@ -211,38 +187,6 @@ def mark_notification_read(name):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     note.db_set("is_read", 1)
     return {"ok": True}
-
-
-# ---------------------------------------------------------------------------
-# helper endpoint: register / update the caller's face reference (testing aid)
-# ---------------------------------------------------------------------------
-@frappe.whitelist()
-def register_my_face():
-    emp = _require_employee()
-    selfie_url = _save_selfie(emp["name"], prefix="face")
-    if not selfie_url:
-        frappe.throw(_("face image file is required"))
-    fobj = frappe.get_doc("File", {"file_url": selfie_url})
-    with open(fobj.get_full_path(), "rb") as fh:
-        encoding = face_match.encode_image(fh.read())
-
-    existing = frappe.db.get_value(
-        "JEW Employee Face", {"employee": emp["name"]}, "name")
-    if existing:
-        face = frappe.get_doc("JEW Employee Face", existing)
-    else:
-        face = frappe.new_doc("JEW Employee Face")
-        face.employee = emp["name"]
-        face.registered_by = frappe.session.user
-        face.registered_on = now_datetime()
-    face.user = frappe.session.user
-    face.face_image = selfie_url
-    face.face_encoding = encoding
-    face.is_active = 1
-    face.last_updated_on = now_datetime()
-    face.save(ignore_permissions=True)
-    return {"employee": emp["name"], "backend": face_match.backend_name(),
-            "face": face.name}
 
 
 # ===========================================================================
@@ -395,54 +339,11 @@ def get_my_late_early_requests(limit=20):
 
 
 # ===========================================================================
-# Background location tracking (NHS Location Ping) — windowed TRAVEL PATH.
-# Each employee gets ONE record per (date, window); every ping APPENDS a point,
-# so the record shows the full path A->B->... on a map (Geolocation field) plus
-# a Google-Maps route link. Called ~every 5 min during the app's active windows
-# (09:00-09:30 and 20:30-21:00) and by the manual "Capture now" button.
+# Location ping (NHS Location Ping) — a SINGLE punch location per (date, window)
+# so the admin can see where the employee marked, on the Desk map. The mobile
+# app no longer calls this directly (the punch mirrors its own location), but
+# the endpoint is kept for manual/testing use and stores a single point.
 # ===========================================================================
-def _build_path_geojson(pts):
-    """FeatureCollection: a LineString for the travelled path + Start/Latest
-    point markers. NOTE: GeoJSON coordinates are [longitude, latitude]."""
-    coords = [[p["lng"], p["lat"]] for p in pts]
-    features = []
-    if len(coords) >= 2:
-        features.append({
-            "type": "Feature",
-            "properties": {"name": "Travel path"},
-            "geometry": {"type": "LineString", "coordinates": coords},
-        })
-    if coords:
-        features.append({
-            "type": "Feature",
-            "properties": {"name": "Start"},
-            "geometry": {"type": "Point", "coordinates": coords[0]},
-        })
-        features.append({
-            "type": "Feature",
-            "properties": {"name": "Latest"},
-            "geometry": {"type": "Point", "coordinates": coords[-1]},
-        })
-    return json.dumps({"type": "FeatureCollection", "features": features})
-
-
-def _build_route_link(pts):
-    """One Google Maps link that draws the whole route through the points."""
-    if not pts:
-        return ""
-    if len(pts) == 1:
-        p = pts[0]
-        return "https://www.google.com/maps?q={0},{1}".format(p["lat"], p["lng"])
-    # too many waypoints make the URL unwieldy — sample down to ~10 (keep last).
-    sample = pts
-    if len(pts) > 10:
-        step = len(pts) / 10.0
-        sample = [pts[int(i * step)] for i in range(10)]
-        sample[-1] = pts[-1]
-    path = "/".join("{0},{1}".format(p["lat"], p["lng"]) for p in sample)
-    return "https://www.google.com/maps/dir/" + path
-
-
 @frappe.whitelist()
 def log_location_ping(latitude=None, longitude=None, accuracy_meter=None,
                       window=None, capture_time=None):
@@ -463,10 +364,10 @@ def log_location_ping(latitude=None, longitude=None, accuracy_meter=None,
         except Exception:
             ct = None
     if not ct:
-        ct = now_datetime()  # sanity fallback only
+        ct = now_datetime()
     cdate = getdate(ct)
 
-    # ONE record per (employee, date, window): find it or create it, then append.
+    # ONE record per (employee, date, window): overwrite with the latest point.
     name = frappe.db.get_value("NHS Location Ping", {
         "employee": emp["name"],
         "window": window,
@@ -481,38 +382,35 @@ def log_location_ping(latitude=None, longitude=None, accuracy_meter=None,
             "employee_name": emp["employee_name"],
             "window": window,
             "capture_date": cdate,
-            "capture_time": ct,      # first capture of the window
-            "points_json": "[]",
+            "capture_time": ct,
         })
 
-    try:
-        pts = json.loads(doc.points_json or "[]")
-    except Exception:
-        pts = []
-    pts.append({
-        "t": ct.strftime("%Y-%m-%d %H:%M:%S"),
-        "lat": lat, "lng": lng, "acc": acc,
-    })
-
-    doc.points_json = json.dumps(pts)
-    doc.points_count = len(pts)
     doc.last_capture = ct
-    doc.latitude = lat        # latest point
+    doc.points_count = 1
+    doc.latitude = lat
     doc.longitude = lng
     doc.accuracy_meter = acc
-    doc.path = _build_path_geojson(pts)
-    doc.map_link = _build_route_link(pts)
+    doc.path = json.dumps({
+        "type": "FeatureCollection",
+        "features": [{
+            "type": "Feature",
+            "properties": {"name": "Punch location"},
+            "geometry": {"type": "Point", "coordinates": [lng, lat]},
+        }],
+    })
+    doc.map_link = "https://www.google.com/maps?q={0},{1}".format(lat, lng)
+    doc.points_json = json.dumps([{
+        "t": ct.strftime("%Y-%m-%d %H:%M:%S"), "lat": lat, "lng": lng, "acc": acc,
+    }])
 
     doc.save(ignore_permissions=True)
     frappe.db.commit()
-    return {"status": "ok", "name": doc.name, "window": window,
-            "points": len(pts)}
+    return {"status": "ok", "name": doc.name, "window": window}
 
 
 # ===========================================================================
-# get_location_path — one employee's ordered movement path for a date+window
-# (Desk map page). Reads the accumulated points from that day's record.
-# Restricted to the elevated roles (matches the doctype's non-if_owner perms).
+# get_location_path — one employee's punch location for a date+window
+# (Desk map page). Restricted to the elevated roles.
 # ===========================================================================
 @frappe.whitelist()
 def get_location_path(employee=None, date=None, window=None):
