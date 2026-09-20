@@ -3,12 +3,17 @@
 
 import frappe
 from frappe.model.document import Document
+from frappe.model.naming import make_autoname
 from frappe.utils import today, now_datetime
 
 from attendance_log.attendance_logic import process_punch
 
 
 class NHSAttendancePunch(Document):
+    def autoname(self):
+        # Human-readable ID based on the Employee ID, e.g. "HR-EMP-00001-00001".
+        self.name = make_autoname(f"{self.employee}-.#####")
+
     def validate(self):
         # light defaults only; the heavy pipeline runs in after_insert so the
         # attached selfie file is available and both API + Desk share one path.
